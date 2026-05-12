@@ -48,4 +48,4 @@ Para rodar o projeto localmente, você precisará de:
 
 1. Clone este repositório:
    ```bash
-   git clone <https://github.com/DouglasBohmer/Auditoria-ISO25010>
+   git clone https://github.com/DouglasBohmer/Auditoria-ISO25010
