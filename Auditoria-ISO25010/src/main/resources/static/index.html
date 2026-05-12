@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoria ISO/IEC 25010</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7fa; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #0056b3; }
+        .input-group { display: flex; margin-top: 20px; }
+        input[type="text"] { flex: 1; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px 0 0 4px; outline: none; }
+        button { padding: 12px 20px; font-size: 16px; border: none; cursor: pointer; transition: background 0.3s; }
+        .btn-executar { background-color: #0056b3; color: white; border-radius: 0 4px 4px 0; }
+        .btn-executar:hover { background-color: #004494; }
+        .btn-pdf { background-color: #28a745; color: white; border-radius: 4px; margin-top: 20px; display: none; width: 100%; }
+        .btn-pdf:hover { background-color: #218838; }
+        #loading { display: none; text-align: center; margin-top: 20px; font-style: italic; color: #666; }
+        #resultados { margin-top: 30px; }
+        .modulo-card { background: #f9f9f9; border-left: 5px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 4px; }
+        .aprovado { border-color: #28a745; }
+        .reprovado { border-color: #dc3545; }
+        .modulo-titulo { font-weight: bold; font-size: 18px; margin-bottom: 10px; }
+        .status { font-weight: bold; }
+        .status.aprovado-text { color: #28a745; }
+        .status.reprovado-text { color: #dc3545; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Auditoria ISO/IEC 25010</h1>
+    <p style="text-align: center;">Insira a URL do repositório Git para iniciar a análise estática e dinâmica.</p>
+    
+    <div class="input-group">
+        <input type="text" id="urlInput" placeholder="Ex: https://github.com/usuario/projeto" value="">
+        <button class="btn-executar" onclick="executarAuditoria()">Auditar Código</button>
+    </div>
+
+    <div id="loading">Clonando repositório e executando pipeline de testes... (Isso pode levar alguns segundos)</div>
+    
+    <div id="resultados"></div>
+
+    <button id="btnPdf" class="btn-pdf" onclick="baixarPdf()">Baixar Relatório Executivo (PDF)</button>
+</div>
+
+<script>
+    // Marcação: Função para acionar o diagnóstico em tempo real
+    async function executarAuditoria() {
+        const url = document.getElementById('urlInput').value;
+        const loading = document.getElementById('loading');
+        const resultadosDiv = document.getElementById('resultados');
+        const btnPdf = document.getElementById('btnPdf');
+
+        if (!url) {
+            alert('Por favor, insira uma URL válida.');
+            return;
+        }
+
+        loading.style.display = 'block';
+        resultadosDiv.innerHTML = '';
+        btnPdf.style.display = 'none';
+
+        try {
+            const response = await fetch('/api/auditoria/executar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ urlRepositorio: url })
+            });
+
+            if (!response.ok) {
+                throw new Error('Falha na execução da auditoria.');
+            }
+
+            const dados = await response.json();
+            renderizarResultados(dados);
+            btnPdf.style.display = 'block';
+
+        } catch (error) {
+            resultadosDiv.innerHTML = `<p style="color: red; text-align: center;">Erro: ${error.message}</p>`;
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+
+    // Marcação: Renderização do payload JSON na tela
+    function renderizarResultados(modulos) {
+        const resultadosDiv = document.getElementById('resultados');
+        modulos.forEach(mod => {
+            const card = document.createElement('div');
+            card.className = `modulo-card ${mod.aprovado ? 'aprovado' : 'reprovado'}`;
+            
+            let html = `<div class="modulo-titulo">${mod.nomeModulo}</div>`;
+            html += `<p>Status: <span class="status ${mod.aprovado ? 'aprovado-text' : 'reprovado-text'}">${mod.aprovado ? 'APROVADO' : 'REPROVADO'}</span></p>`;
+            html += `<p>${mod.observacao}</p>`;
+            
+            if (mod.metricas) {
+                html += `<ul>`;
+                for (const [chave, valor] of Object.entries(mod.metricas)) {
+                    html += `<li><strong>${chave}:</strong> ${valor}</li>`;
+                }
+                html += `</ul>`;
+            }
+            
+            card.innerHTML = html;
+            resultadosDiv.appendChild(card);
+        });
+    }
+
+    // Marcação: Download nativo do PDF gerado pelo backend
+    async function baixarPdf() {
+        const url = document.getElementById('urlInput').value;
+        
+        try {
+            const response = await fetch('/api/auditoria/relatorio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ urlRepositorio: url })
+            });
+
+            if (!response.ok) throw new Error('Erro ao gerar PDF');
+
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = 'Auditoria_ISO25010.pdf';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } catch (error) {
+            alert(error.message);
+        }
+    }
+</script>
+
+</body>
+</html>
