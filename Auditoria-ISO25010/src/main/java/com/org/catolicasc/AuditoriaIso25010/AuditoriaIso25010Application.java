@@ -9,5 +9,4 @@ public class AuditoriaIso25010Application {
 	public static void main(String[] args) {
 		SpringApplication.run(AuditoriaIso25010Application.class, args);
 	}
-
 }
